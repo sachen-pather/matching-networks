@@ -1,0 +1,127 @@
+/* Dark theme styles for RF Matching Networks Designer */
+
+/* Base styles */
+body {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d3d3d;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+
+/* Card styling */
+.card {
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.card-header {
+  background-color: #252525;
+  border-bottom: 1px solid #333;
+}
+
+/* Input styling */
+input,
+select,
+textarea {
+  background-color: #2d2d2d;
+  border: 1px solid #444;
+  color: #e0e0e0;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Button styling */
+.button {
+  background-color: #3b82f6;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.button:hover {
+  background-color: #2563eb;
+}
+
+/* Tab styling */
+.tabs-list {
+  background-color: #252525;
+  border: 1px solid #333;
+}
+
+.tabs-trigger {
+  color: #a0a0a0;
+}
+
+.tabs-trigger[data-state="active"] {
+  background-color: #1a365d;
+  color: #e0e0e0;
+}
+
+/* Graph and diagram containers */
+.diagram-container,
+.graph-container {
+  background-color: #252525;
+  border: 1px solid #444;
+}
+
+/* Results section */
+.results {
+  background-color: #1a365d;
+  border: 1px solid #2a4365;
+}
+
+/* Placeholder text */
+.placeholder {
+  color: #6b7280;
+}
+
+/* Remove spinner arrows from number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* SVG styling for dark mode */
+svg {
+  stroke: #e0e0e0;
+  fill: none;
+}
+
+svg text {
+  fill: #e0e0e0;
+  stroke: none;
+}
+
+svg rect,
+svg circle,
+svg path,
+svg line {
+  stroke: #e0e0e0;
+}

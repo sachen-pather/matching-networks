@@ -1,0 +1,5 @@
+npm uninstall tailwindcss postcss autoprefixer
+npm install -D tailwindcss@3.3.3 postcss@8.4.29 autoprefixer@10.4.15
+npx tailwindcss@3.3.3 init -p
+
+this fixed it last time
