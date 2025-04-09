@@ -60,40 +60,6 @@ function App() {
     setGraphData(null);
   };
 
-  // Calculate function with input validation
-  const calculateNetwork = () => {
-    // Validate inputs
-    if (loadImpedance.real <= 0 || sourceImpedance <= 0 || frequency <= 0) {
-      alert(
-        "Please enter positive values for load impedance, source impedance, and frequency."
-      );
-      return;
-    }
-
-    let buttonSelector;
-    switch (selectedNetwork) {
-      case "quarter-wave":
-        buttonSelector = '[data-testid="quarter-wave-calculate"]';
-        break;
-      case "lumped-element":
-        buttonSelector = '[data-testid="lumped-element-calculate"]';
-        break;
-      case "single-stub":
-        buttonSelector = '[data-testid="single-stub-calculate"]';
-        break;
-      default:
-        return;
-    }
-
-    const button = document.querySelector(buttonSelector);
-    if (button) {
-      console.log(`Triggering calculation for ${selectedNetwork}`);
-      button.click();
-    } else {
-      console.warn(`Could not find calculation button for ${selectedNetwork}`);
-    }
-  };
-
   // JSX Rendering
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -183,13 +149,6 @@ function App() {
               </div>
             </div>
 
-            <Button
-              onClick={calculateNetwork}
-              className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Calculate Matching Network
-            </Button>
-
             <div className="flex justify-end mt-4">
               <label className="inline-flex items-center bg-gray-700 px-4 py-2 rounded-md shadow-sm">
                 <input
@@ -263,6 +222,7 @@ function App() {
                 <QuarterWaveTransformer
                   loadImpedance={loadImpedance}
                   frequency={frequency}
+                  sourceImpedance={sourceImpedance} // Pass from main settings
                   updateResults={updateResults}
                   updateGraphData={updateGraphData}
                 />
@@ -271,6 +231,7 @@ function App() {
                 <LumpedElementNetwork
                   loadImpedance={loadImpedance}
                   frequency={frequency}
+                  sourceImpedance={sourceImpedance} // Pass from main settings
                   updateResults={updateResults}
                   updateGraphData={updateGraphData}
                 />
@@ -279,6 +240,7 @@ function App() {
                 <SingleStubNetwork
                   loadImpedance={loadImpedance}
                   frequency={frequency}
+                  sourceImpedance={sourceImpedance} // Pass from main settings
                   updateResults={updateResults}
                   updateGraphData={updateGraphData}
                 />

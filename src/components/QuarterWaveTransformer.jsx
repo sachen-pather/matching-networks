@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 const QuarterWaveTransformer = ({
   loadImpedance,
   frequency,
+  sourceImpedance, // Now receiving this from parent
   updateResults,
   updateGraphData,
 }) => {
-  const [sourceImpedance, setSourceImpedance] = useState(50);
+  // Remove duplicated state for sourceImpedance
   const [characteristicImpedance, setCharacteristicImpedance] = useState(null);
   const [quarterWaveLength, setQuarterWaveLength] = useState(null);
   const [speedOfLight] = useState(299792458); // m/s, constant
@@ -130,22 +131,7 @@ const QuarterWaveTransformer = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Source Impedance (Ω)
-            </label>
-            <input
-              type="number"
-              value={sourceImpedance}
-              onChange={(e) => {
-                const value = Number.parseFloat(e.target.value);
-                if (value > 0) setSourceImpedance(value);
-                else alert("Source impedance must be positive.");
-              }}
-              className="block w-full rounded-md bg-gray-700 border border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2 text-gray-100"
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Relative Permittivity (εr)

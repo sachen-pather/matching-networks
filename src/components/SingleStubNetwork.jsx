@@ -7,15 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 const SingleStubNetwork = ({
   loadImpedance,
   frequency,
+  sourceImpedance,
   updateResults,
   updateGraphData,
 }) => {
-  // State variables with initial values
-  const [sourceImpedance, setSourceImpedance] = useState(50);
   const [stubConfiguration, setStubConfiguration] = useState("shunt");
   const [stubType, setStubType] = useState("short");
   const [relativePermittivity, setRelativePermittivity] = useState(1);
   const [results, setResults] = useState(null);
+  const [optimalSolution, setOptimalSolution] = useState(null);
+  const [optimizationReason, setOptimizationReason] = useState("");
 
   // **Complex Number Helper**
   const Complex = (real, imag) => ({
@@ -206,9 +207,47 @@ const SingleStubNetwork = ({
             }
           : null;
 
+      // Track length optimization - find the solution with the shortest total track length
+      const totalLength1 = solution1.distance + solution1.stubLength;
+      const totalLength2 = solution2
+        ? solution2.distance + solution2.stubLength
+        : Infinity;
+
+      if (totalLength1 <= totalLength2) {
+        setOptimalSolution("solution1");
+        setOptimizationReason(
+          `Solution 1 is recommended as it requires less total track length (${totalLength1.toFixed(
+            2
+          )} m vs ${totalLength2.toFixed(2)} m).`
+        );
+        generateGraphData(solution1);
+      } else {
+        setOptimalSolution("solution2");
+        setOptimizationReason(
+          `Solution 2 is recommended as it requires less total track length (${totalLength2.toFixed(
+            2
+          )} m vs ${totalLength1.toFixed(2)} m).`
+        );
+        generateGraphData(solution2);
+      }
+
       setResults({ solution1, solution2, stubType, stubConfiguration });
-      updateResults({ solution1, solution2, stubType, stubConfiguration });
-      generateGraphData(solution1);
+      updateResults({
+        solution1,
+        solution2,
+        stubType,
+        stubConfiguration,
+        optimalSolution:
+          totalLength1 <= totalLength2 ? "solution1" : "solution2",
+        optimizationReason:
+          totalLength1 <= totalLength2
+            ? `Solution 1 requires less total track length (${totalLength1.toFixed(
+                2
+              )} m vs ${totalLength2.toFixed(2)} m).`
+            : `Solution 2 requires less total track length (${totalLength2.toFixed(
+                2
+              )} m vs ${totalLength1.toFixed(2)} m).`,
+      });
     } else {
       // **Series Stub Calculation**
       const zL = { real: RL / Z0, imag: XL / Z0 };
@@ -266,9 +305,45 @@ const SingleStubNetwork = ({
         stubLengthWavelength: stubLength2Wavelength,
       };
 
+      // Track length optimization - find the solution with the shortest total track length
+      const totalLength1 = solution1.distance + solution1.stubLength;
+      const totalLength2 = solution2.distance + solution2.stubLength;
+
+      if (totalLength1 <= totalLength2) {
+        setOptimalSolution("solution1");
+        setOptimizationReason(
+          `Solution 1 is recommended as it requires less total track length (${totalLength1.toFixed(
+            2
+          )} m vs ${totalLength2.toFixed(2)} m).`
+        );
+        generateGraphData(solution1);
+      } else {
+        setOptimalSolution("solution2");
+        setOptimizationReason(
+          `Solution 2 is recommended as it requires less total track length (${totalLength2.toFixed(
+            2
+          )} m vs ${totalLength1.toFixed(2)} m).`
+        );
+        generateGraphData(solution2);
+      }
+
       setResults({ solution1, solution2, stubType, stubConfiguration });
-      updateResults({ solution1, solution2, stubType, stubConfiguration });
-      generateGraphData(solution1);
+      updateResults({
+        solution1,
+        solution2,
+        stubType,
+        stubConfiguration,
+        optimalSolution:
+          totalLength1 <= totalLength2 ? "solution1" : "solution2",
+        optimizationReason:
+          totalLength1 <= totalLength2
+            ? `Solution 1 requires less total track length (${totalLength1.toFixed(
+                2
+              )} m vs ${totalLength2.toFixed(2)} m).`
+            : `Solution 2 requires less total track length (${totalLength2.toFixed(
+                2
+              )} m vs ${totalLength1.toFixed(2)} m).`,
+      });
     }
   };
 
@@ -282,21 +357,6 @@ const SingleStubNetwork = ({
       </CardHeader>
       <CardContent className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Source Impedance (Ω)
-            </label>
-            <input
-              type="number"
-              value={sourceImpedance}
-              onChange={(e) => {
-                const value = Number.parseFloat(e.target.value);
-                if (value > 0) setSourceImpedance(value);
-                else alert("Source impedance must be positive.");
-              }}
-              className="block w-full rounded-md bg-gray-700 border border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2 text-gray-100"
-            />
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Stub Configuration
@@ -350,8 +410,19 @@ const SingleStubNetwork = ({
 
         {results && (
           <div className="space-y-4">
-            <div className="p-4 bg-gray-700 rounded-md border border-gray-600">
-              <h3 className="font-semibold mb-2 text-gray-200">Solution 1:</h3>
+            <div
+              className={`p-4 bg-gray-700 rounded-md border ${
+                optimalSolution === "solution1"
+                  ? "border-blue-500"
+                  : "border-gray-600"
+              }`}
+            >
+              <h3 className="font-semibold mb-2 text-gray-200">
+                Solution 1:{" "}
+                {optimalSolution === "solution1" && (
+                  <span className="text-blue-400">(Recommended)</span>
+                )}
+              </h3>
               <p className="text-gray-300">
                 Distance from Load: {results.solution1.distance.toFixed(2)} m (
                 {(results.solution1.distanceWavelength * 360).toFixed(1)}°)
@@ -359,6 +430,13 @@ const SingleStubNetwork = ({
               <p className="text-gray-300">
                 Stub Length: {results.solution1.stubLength.toFixed(2)} m (
                 {(results.solution1.stubLengthWavelength * 360).toFixed(1)}°)
+              </p>
+              <p className="text-gray-300">
+                Total Track Length:{" "}
+                {(
+                  results.solution1.distance + results.solution1.stubLength
+                ).toFixed(2)}{" "}
+                m
               </p>
               <p className="text-gray-300">
                 Stub Type:{" "}
@@ -369,9 +447,18 @@ const SingleStubNetwork = ({
             </div>
 
             {results.solution2 && (
-              <div className="p-4 bg-gray-700 rounded-md border border-gray-600">
+              <div
+                className={`p-4 bg-gray-700 rounded-md border ${
+                  optimalSolution === "solution2"
+                    ? "border-blue-500"
+                    : "border-gray-600"
+                }`}
+              >
                 <h3 className="font-semibold mb-2 text-gray-200">
-                  Solution 2:
+                  Solution 2:{" "}
+                  {optimalSolution === "solution2" && (
+                    <span className="text-blue-400">(Recommended)</span>
+                  )}
                 </h3>
                 <p className="text-gray-300">
                   Distance from Load: {results.solution2.distance.toFixed(2)} m
@@ -382,6 +469,13 @@ const SingleStubNetwork = ({
                   {(results.solution2.stubLengthWavelength * 360).toFixed(1)}°)
                 </p>
                 <p className="text-gray-300">
+                  Total Track Length:{" "}
+                  {(
+                    results.solution2.distance + results.solution2.stubLength
+                  ).toFixed(2)}{" "}
+                  m
+                </p>
+                <p className="text-gray-300">
                   Stub Type:{" "}
                   {results.stubType === "short"
                     ? "Short-Circuited"
@@ -389,6 +483,11 @@ const SingleStubNetwork = ({
                 </p>
               </div>
             )}
+
+            {/* Optimization reasoning */}
+            <div className="p-3 bg-gray-600 rounded-md">
+              <p className="text-sm text-gray-300">{optimizationReason}</p>
+            </div>
           </div>
         )}
       </CardContent>
