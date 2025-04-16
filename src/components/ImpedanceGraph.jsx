@@ -33,6 +33,11 @@ export const ImpedanceGraph = ({ data }) => {
     Math.max(maxReal, maxImag, maxSWR) * 1.1,
   ];
 
+  // Custom tick formatter to round to one decimal place
+  const tickFormatter = (value) => {
+    return value.toFixed(1);
+  };
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -55,6 +60,7 @@ export const ImpedanceGraph = ({ data }) => {
         />
         <YAxis
           domain={yDomain}
+          tickFormatter={tickFormatter}
           label={{
             value: "Impedance (Ω) / SWR",
             angle: -90,
@@ -67,21 +73,21 @@ export const ImpedanceGraph = ({ data }) => {
           type="monotone"
           dataKey="real"
           name="Real"
-          stroke="#8884d8"
+          stroke="#4285F4"
           dot={false}
         />
         <Line
           type="monotone"
           dataKey="imag"
           name="Imaginary"
-          stroke="#82ca9d"
+          stroke="#EA4335"
           dot={false}
         />
         <Line
           type="monotone"
           dataKey="swr"
           name="SWR"
-          stroke="#ff7300"
+          stroke="#34A853"
           dot={false}
         />
       </LineChart>

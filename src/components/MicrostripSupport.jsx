@@ -18,9 +18,20 @@ const MicrostripSupport = ({ networkType, results, frequency }) => {
       (Z0 / 60) * Math.sqrt((er + 1) / 2) +
       ((er - 1) / (er + 1)) * (0.23 + 0.11 / er);
     const B = (377 * Math.PI) / (2 * Z0 * Math.sqrt(er));
-    const width =
-      h *
-      (B - 1 - Math.log(2 * B - 1) + ((er - 1) / (2 * er)) * Math.log(B - 1));
+
+    let w_h;
+    const w_h_small = (8 * Math.exp(A)) / (Math.exp(2 * A) - 2);
+    if (w_h_small < 2) {
+      w_h = w_h_small;
+    } else {
+      w_h =
+        (2 / Math.PI) *
+        (B -
+          1 -
+          Math.log(2 * B - 1) +
+          ((er - 1) / (2 * er)) * (Math.log(B - 1) + 0.39 - 0.61 / er));
+    }
+    const width = w_h * h;
     return width;
   };
 
@@ -75,7 +86,7 @@ const MicrostripSupport = ({ networkType, results, frequency }) => {
           return;
         }
 
-        Z0 = 50; // Typically 50 ohms for single-stub networks
+        Z0 = 50; // Standard 50 ohms for single-stub networks
         width = calculateWidth(Z0, h, er);
         e_eff = calculateEffectivePermittivity(width, h, er);
         const lambda_eff = c / (freq * Math.sqrt(e_eff));

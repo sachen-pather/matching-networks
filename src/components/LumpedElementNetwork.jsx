@@ -7,13 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 const LumpedElementNetwork = ({
   loadImpedance,
   frequency,
-  sourceImpedance, // Now receiving this from parent
+  sourceImpedance,
   updateResults,
   updateGraphData,
 }) => {
-  // Remove duplicated state for sourceImpedance
   const [configuration, setConfiguration] = useState("shunt-first");
   const [results, setResults] = useState(null);
+  const [allSolutions, setAllSolutions] = useState(null);
+  const [selectedSolution, setSelectedSolution] = useState(0);
 
   // ### Complex Number Helper
   const Complex = (real, imag) => ({
@@ -191,125 +192,260 @@ const LumpedElementNetwork = ({
       return;
     }
 
-    let componentValues = {};
+    let solutions = [];
 
     if (configuration === "shunt-first") {
       // Shunt element followed by series element (better for RL > Z0)
-      if (RL <= Z0) {
-        alert(
-          "For this load, the series-first configuration may work better. Try switching configurations."
-        );
-      }
+      // Shunt-first configuration - equation 5.3a and 5.3b in the text
 
-      // Calculate shunt susceptance (B)
       const discriminant = (RL / Z0) * (RL * RL + XL * XL - Z0 * RL);
+
       if (discriminant < 0) {
         alert("No real solution for shunt-first configuration with this load.");
         return;
       }
+
       const sqrtDiscriminant = Math.sqrt(discriminant);
+
+      // Calculate both possible solutions
       const B1 = (XL + sqrtDiscriminant) / (RL * RL + XL * XL);
       const B2 = (XL - sqrtDiscriminant) / (RL * RL + XL * XL);
-      const B_final = Math.abs(B1) < Math.abs(B2) ? B1 : B2;
 
-      // Calculate series reactance (X)
-      const X = 1 / B_final + (XL * Z0) / RL - Z0 / (B_final * RL);
+      // Calculate the series reactances for each B
+      const X1 = 1 / B1 + (XL * Z0) / RL - Z0 / (B1 * RL);
+      const X2 = 1 / B2 + (XL * Z0) / RL - Z0 / (B2 * RL);
 
-      // Determine component types and values
-      let shuntComponent, seriesComponent;
-
-      if (B_final > 0) {
-        shuntComponent = {
+      // Solution 1
+      let shuntComponent1, seriesComponent1;
+      if (B1 > 0) {
+        shuntComponent1 = {
           type: "capacitor",
-          value: B_final / omega,
+          value: B1 / omega,
           unit: "F",
         };
       } else {
-        shuntComponent = {
+        shuntComponent1 = {
           type: "inductor",
-          value: -1 / (B_final * omega),
+          value: -1 / (B1 * omega),
           unit: "H",
         };
       }
 
-      if (X > 0) {
-        seriesComponent = {
+      if (X1 > 0) {
+        seriesComponent1 = {
           type: "inductor",
-          value: X / omega,
+          value: X1 / omega,
           unit: "H",
         };
       } else {
-        seriesComponent = {
+        seriesComponent1 = {
           type: "capacitor",
-          value: -1 / (X * omega),
+          value: -1 / (X1 * omega),
           unit: "F",
         };
       }
 
-      componentValues = { shunt: shuntComponent, series: seriesComponent };
+      // Solution 2
+      let shuntComponent2, seriesComponent2;
+      if (B2 > 0) {
+        shuntComponent2 = {
+          type: "capacitor",
+          value: B2 / omega,
+          unit: "F",
+        };
+      } else {
+        shuntComponent2 = {
+          type: "inductor",
+          value: -1 / (B2 * omega),
+          unit: "H",
+        };
+      }
+
+      if (X2 > 0) {
+        seriesComponent2 = {
+          type: "inductor",
+          value: X2 / omega,
+          unit: "H",
+        };
+      } else {
+        seriesComponent2 = {
+          type: "capacitor",
+          value: -1 / (X2 * omega),
+          unit: "F",
+        };
+      }
+
+      solutions.push({
+        shunt: shuntComponent1,
+        series: seriesComponent1,
+        B: B1,
+        X: X1,
+      });
+
+      solutions.push({
+        shunt: shuntComponent2,
+        series: seriesComponent2,
+        B: B2,
+        X: X2,
+      });
     } else {
       // Series element followed by shunt element (better for RL < Z0)
-      if (RL >= Z0) {
-        alert(
-          "For this load, the shunt-first configuration may work better. Try switching configurations."
-        );
-      }
+      // Series-first configuration - equation 5.6a and 5.6b in the text
 
-      // Calculate series reactance (X)
       const discriminant = RL * (Z0 - RL);
+
       if (discriminant < 0) {
         alert(
           "No real solution for series-first configuration with this load."
         );
         return;
       }
+
       const sqrtDiscriminant = Math.sqrt(discriminant);
+
+      // Calculate both solutions for X
       const X1 = sqrtDiscriminant - XL;
       const X2 = -sqrtDiscriminant - XL;
-      const X_final = Math.abs(X1) < Math.abs(X2) ? X1 : X2;
 
-      // Calculate shunt susceptance (B)
-      const B1 = sqrtDiscriminant / (RL * Z0);
-      const B2 = -sqrtDiscriminant / (RL * Z0);
-      const B_final = Math.abs(B1) < Math.abs(B2) ? B1 : B2;
+      // Calculate the corresponding B values
+      const B1 = sqrtDiscriminant / (Z0 * RL);
+      const B2 = -sqrtDiscriminant / (Z0 * RL);
 
-      // Determine component types and values
-      let seriesComponent, shuntComponent;
-
-      if (X_final > 0) {
-        seriesComponent = {
+      // Solution 1
+      let seriesComponent1, shuntComponent1;
+      if (X1 > 0) {
+        seriesComponent1 = {
           type: "inductor",
-          value: X_final / omega,
+          value: X1 / omega,
           unit: "H",
         };
       } else {
-        seriesComponent = {
+        seriesComponent1 = {
           type: "capacitor",
-          value: -1 / (X_final * omega),
+          value: -1 / (X1 * omega),
           unit: "F",
         };
       }
 
-      if (B_final > 0) {
-        shuntComponent = {
+      if (B1 > 0) {
+        shuntComponent1 = {
           type: "capacitor",
-          value: B_final / omega,
+          value: B1 / omega,
           unit: "F",
         };
       } else {
-        shuntComponent = {
+        shuntComponent1 = {
           type: "inductor",
-          value: -1 / (B_final * omega),
+          value: -1 / (B1 * omega),
           unit: "H",
         };
       }
 
-      componentValues = { series: seriesComponent, shunt: shuntComponent };
+      // Solution 2
+      let seriesComponent2, shuntComponent2;
+      if (X2 > 0) {
+        seriesComponent2 = {
+          type: "inductor",
+          value: X2 / omega,
+          unit: "H",
+        };
+      } else {
+        seriesComponent2 = {
+          type: "capacitor",
+          value: -1 / (X2 * omega),
+          unit: "F",
+        };
+      }
+
+      if (B2 > 0) {
+        shuntComponent2 = {
+          type: "capacitor",
+          value: B2 / omega,
+          unit: "F",
+        };
+      } else {
+        shuntComponent2 = {
+          type: "inductor",
+          value: -1 / (B2 * omega),
+          unit: "H",
+        };
+      }
+
+      solutions.push({
+        series: seriesComponent1,
+        shunt: shuntComponent1,
+        X: X1,
+        B: B1,
+      });
+
+      solutions.push({
+        series: seriesComponent2,
+        shunt: shuntComponent2,
+        X: X2,
+        B: B2,
+      });
     }
 
-    setResults(componentValues);
-    updateResults({ configuration, components: componentValues });
-    generateGraphData(componentValues);
+    setAllSolutions(solutions);
+    setSelectedSolution(0);
+    setResults(solutions[0]);
+
+    // Format components for CircuitDiagram (convert to array, pre-format values to pF/nH)
+    const formattedComponents = [
+      {
+        type: solutions[0].shunt.type === "capacitor" ? "C" : "L",
+        value:
+          solutions[0].shunt.unit === "F"
+            ? solutions[0].shunt.value * 1e12 // Convert F to pF
+            : solutions[0].shunt.value * 1e9, // Convert H to nH
+      },
+      {
+        type: solutions[0].series.type === "capacitor" ? "C" : "L",
+        value:
+          solutions[0].series.unit === "F"
+            ? solutions[0].series.value * 1e12 // Convert F to pF
+            : solutions[0].series.value * 1e9, // Convert H to nH
+      },
+    ];
+
+    updateResults({
+      isShuntFirst: configuration === "shunt-first",
+      components: formattedComponents,
+    });
+
+    generateGraphData(solutions[0]);
+  };
+
+  const selectSolution = (index) => {
+    if (allSolutions && index >= 0 && index < allSolutions.length) {
+      setSelectedSolution(index);
+      setResults(allSolutions[index]);
+
+      // Update formatted components for the circuit diagram
+      const formattedComponents = [
+        {
+          type: allSolutions[index].shunt.type === "capacitor" ? "C" : "L",
+          value:
+            allSolutions[index].shunt.unit === "F"
+              ? allSolutions[index].shunt.value * 1e12 // Convert F to pF
+              : allSolutions[index].shunt.value * 1e9, // Convert H to nH
+        },
+        {
+          type: allSolutions[index].series.type === "capacitor" ? "C" : "L",
+          value:
+            allSolutions[index].series.unit === "F"
+              ? allSolutions[index].series.value * 1e12 // Convert F to pF
+              : allSolutions[index].series.value * 1e9, // Convert H to nH
+        },
+      ];
+
+      updateResults({
+        isShuntFirst: configuration === "shunt-first",
+        components: formattedComponents,
+      });
+
+      generateGraphData(allSolutions[index]);
+    }
   };
 
   // ### JSX Rendering
@@ -345,8 +481,24 @@ const LumpedElementNetwork = ({
           Calculate
         </Button>
 
-        {results && (
-          <div className="space-y-2">
+        {allSolutions && allSolutions.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex gap-2 mb-2">
+              {allSolutions.map((_, index) => (
+                <Button
+                  key={index}
+                  onClick={() => selectSolution(index)}
+                  className={`px-4 py-1 ${
+                    selectedSolution === index
+                      ? "bg-blue-700 text-white"
+                      : "bg-gray-700 text-gray-200"
+                  }`}
+                >
+                  Solution {index + 1}
+                </Button>
+              ))}
+            </div>
+
             <div className="p-4 bg-gray-700 rounded-md border border-gray-600">
               <h3 className="font-semibold text-gray-200">
                 Results (
@@ -355,39 +507,68 @@ const LumpedElementNetwork = ({
                   : "Series-First"}
                 ):
               </h3>
+
               {configuration === "shunt-first" ? (
                 <>
-                  <p className="text-gray-300">
-                    Shunt Component ({results.shunt.type}):{" "}
-                    {formatComponentValue(
-                      results.shunt.value,
-                      results.shunt.unit
-                    )}
+                  <p className="text-gray-300 mt-2">
+                    <span className="font-medium">Shunt Susceptance (B):</span>{" "}
+                    {results.B.toFixed(5)} S
                   </p>
                   <p className="text-gray-300">
-                    Series Component ({results.series.type}):{" "}
-                    {formatComponentValue(
-                      results.series.value,
-                      results.series.unit
-                    )}
+                    <span className="font-medium">Series Reactance (X):</span>{" "}
+                    {results.X.toFixed(2)} Ω
                   </p>
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <p className="text-gray-300">
+                      <span className="font-medium">
+                        Shunt Component ({results.shunt.type}):
+                      </span>{" "}
+                      {formatComponentValue(
+                        results.shunt.value,
+                        results.shunt.unit
+                      )}
+                    </p>
+                    <p className="text-gray-300">
+                      <span className="font-medium">
+                        Series Component ({results.series.type}):
+                      </span>{" "}
+                      {formatComponentValue(
+                        results.series.value,
+                        results.series.unit
+                      )}
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
-                  <p className="text-gray-300">
-                    Series Component ({results.series.type}):{" "}
-                    {formatComponentValue(
-                      results.series.value,
-                      results.series.unit
-                    )}
+                  <p className="text-gray-300 mt-2">
+                    <span className="font-medium">Series Reactance (X):</span>{" "}
+                    {results.X.toFixed(2)} Ω
                   </p>
                   <p className="text-gray-300">
-                    Shunt Component ({results.shunt.type}):{" "}
-                    {formatComponentValue(
-                      results.shunt.value,
-                      results.shunt.unit
-                    )}
+                    <span className="font-medium">Shunt Susceptance (B):</span>{" "}
+                    {results.B.toFixed(5)} S
                   </p>
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <p className="text-gray-300">
+                      <span className="font-medium">
+                        Series Component ({results.series.type}):
+                      </span>{" "}
+                      {formatComponentValue(
+                        results.series.value,
+                        results.series.unit
+                      )}
+                    </p>
+                    <p className="text-gray-300">
+                      <span className="font-medium">
+                        Shunt Component ({results.shunt.type}):
+                      </span>{" "}
+                      {formatComponentValue(
+                        results.shunt.value,
+                        results.shunt.unit
+                      )}
+                    </p>
+                  </div>
                 </>
               )}
             </div>

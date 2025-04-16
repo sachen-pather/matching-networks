@@ -18,7 +18,7 @@ const SingleStubNetwork = ({
   const [optimalSolution, setOptimalSolution] = useState(null);
   const [optimizationReason, setOptimizationReason] = useState("");
 
-  // **Complex Number Helper**
+  // Complex Number Helper
   const Complex = (real, imag) => ({
     real,
     imag,
@@ -36,14 +36,14 @@ const SingleStubNetwork = ({
     },
   });
 
-  // **Invert a Complex Number**
+  // Invert a Complex Number
   const invertComplex = (z) => {
     const denom = z.real * z.real + z.imag * z.imag;
+    if (denom < 1e-10) return Complex(0, 0); // Avoid division by zero
     return Complex(z.real / denom, -z.imag / denom);
   };
 
-  // **Transform Impedance Function (Corrected)**
-  // Uses the standard transmission line formula: Z_in = Z0 * (ZL + j Z0 tan(θ)) / (Z0 + j ZL tan(θ))
+  // Transform Impedance Function
   const transformImpedance = (ZL, Z0, electricalLength) => {
     const theta = 2 * Math.PI * electricalLength;
     const tanTheta = Math.tan(theta);
@@ -56,15 +56,14 @@ const SingleStubNetwork = ({
     );
   };
 
-  // **Calculate Standing Wave Ratio (SWR)**
+  // Calculate Standing Wave Ratio (SWR)
   const calculateSWR = (real, imag, Z0) => {
     const Z = Math.sqrt(real * real + imag * imag);
     const gamma = Math.abs((Z - Z0) / (Z + Z0));
     return (1 + gamma) / (1 - gamma);
   };
 
-  // **Generate Graph Data**
-  // Computes impedance and SWR across a frequency range for plotting
+  // Generate Graph Data
   const generateGraphData = (solution) => {
     const freqStart = frequency / 2;
     const freqEnd = frequency * 1.5;
@@ -85,7 +84,6 @@ const SingleStubNetwork = ({
       let ZIN;
 
       if (stubConfiguration === "shunt") {
-        // Shunt stub: Z_total = 1 / (Y_load + Y_stub)
         const ZL = Complex(RL, XL);
         const ZINStubPoint = transformImpedance(ZL, Z0, electricalDistance);
         const YINStubPoint = invertComplex(ZINStubPoint);
@@ -102,7 +100,6 @@ const SingleStubNetwork = ({
         const YTOTAL = YINStubPoint.add(YSTUB);
         ZIN = invertComplex(YTOTAL);
       } else {
-        // Series stub: Z_total = Z_load + Z_stub
         const ZL = Complex(RL, XL);
         const ZINStubPoint = transformImpedance(ZL, Z0, electricalDistance);
         let ZSTUB;
@@ -128,25 +125,29 @@ const SingleStubNetwork = ({
     updateGraphData(data);
   };
 
-  // **Calculate Matching Network Parameters**
+  // Calculate Matching Network Parameters
   const calculate = () => {
     const Z0 = sourceImpedance;
+    const Y0 = 1 / Z0;
     const RL = loadImpedance.real;
     const XL = loadImpedance.imag;
 
-    if (stubConfiguration === "shunt") {
-      // **Shunt Stub Calculation**
-      const zL = { real: RL / Z0, imag: XL / Z0 };
-      const denominator = zL.real * zL.real + zL.imag * zL.imag;
-      const yL = { real: zL.real / denominator, imag: -zL.imag / denominator };
+    // Input validation
+    if (frequency <= 0 || relativePermittivity < 1) {
+      alert(
+        "Frequency must be positive and relative permittivity must be at least 1."
+      );
+      return;
+    }
 
+    if (stubConfiguration === "shunt") {
+      // Shunt Stub Calculation
       let t1, t2;
-      if (RL === Z0) {
+      if (Math.abs(RL - Z0) < 0.0001) {
         t1 = -XL / (2 * Z0);
         t2 = null;
       } else {
-        const discriminant =
-          Math.sqrt(RL * ((Z0 - RL) * (Z0 - RL) + XL * XL)) / Z0;
+        const discriminant = Math.sqrt((RL / Z0) * ((Z0 - RL) ** 2 + XL ** 2));
         t1 = (XL + discriminant) / (RL - Z0);
         t2 = (XL - discriminant) / (RL - Z0);
       }
@@ -164,39 +165,50 @@ const SingleStubNetwork = ({
           : null;
 
       const calculateB = (t) => {
-        const rT =
-          (RL * (1 + t * t)) / (RL * RL + (XL + Z0 * t) * (XL + Z0 * t));
-        const xT =
+        return (
           (RL * RL * t - (Z0 - XL * t) * (XL + Z0 * t)) /
-          (Z0 * (RL * RL + (XL + Z0 * t) * (XL + Z0 * t)));
-        return -xT;
+          (Z0 * (RL * RL + (XL + Z0 * t) * (XL + Z0 * t)))
+        );
       };
 
       const B1 = calculateB(t1);
       const B2 = t2 !== null ? calculateB(t2) : null;
 
-      let stubLength1, stubLength2;
-      if (stubType === "short") {
-        stubLength1 = Math.atan(1 / (Z0 * B1)) / (2 * Math.PI);
-        if (stubLength1 < 0) stubLength1 += 0.5;
-        stubLength2 =
-          B2 !== null ? Math.atan(1 / (Z0 * B2)) / (2 * Math.PI) : null;
-        if (stubLength2 !== null && stubLength2 < 0) stubLength2 += 0.5;
-      } else {
-        stubLength1 = Math.atan(-Z0 * B1) / (2 * Math.PI);
-        if (stubLength1 < 0) stubLength1 += 0.5;
-        stubLength2 = B2 !== null ? Math.atan(-Z0 * B2) / (2 * Math.PI) : null;
-        if (stubLength2 !== null && stubLength2 < 0) stubLength2 += 0.5;
+      let stubLength1Open = (-1 * Math.atan(B1 / Y0)) / (2 * Math.PI);
+      if (stubLength1Open < 0) stubLength1Open += 0.5;
+      let stubLength2Open = null;
+      if (B2 !== null) {
+        stubLength2Open = (-1 * Math.atan(B2 / Y0)) / (2 * Math.PI);
+        if (stubLength2Open < 0) stubLength2Open += 0.5;
       }
+
+      let stubLength1Short = Math.atan(Y0 / B1) / (2 * Math.PI);
+      if (stubLength1Short < 0) stubLength1Short += 0.5;
+      let stubLength2Short = null;
+      if (B2 !== null) {
+        stubLength2Short = Math.atan(Y0 / B2) / (2 * Math.PI);
+        if (stubLength2Short < 0) stubLength2Short += 0.5;
+      }
+
+      let stubLength1 =
+        stubType === "short" ? stubLength1Short : stubLength1Open;
+      let stubLength2 =
+        stubType === "short" ? stubLength2Short : stubLength2Open;
 
       const wavelength =
         299792458 / Math.sqrt(relativePermittivity) / (frequency * 1e6);
+
       const solution1 = {
         distance: d1 * wavelength,
         stubLength: stubLength1 * wavelength,
         distanceWavelength: d1,
         stubLengthWavelength: stubLength1,
+        tValue: t1,
+        bValue: B1,
+        locLambda: stubLength1Open,
+        lscLambda: stubLength1Short,
       };
+
       const solution2 =
         d2 !== null
           ? {
@@ -204,10 +216,13 @@ const SingleStubNetwork = ({
               stubLength: stubLength2 * wavelength,
               distanceWavelength: d2,
               stubLengthWavelength: stubLength2,
+              tValue: t2,
+              bValue: B2,
+              locLambda: stubLength2Open,
+              lscLambda: stubLength2Short,
             }
           : null;
 
-      // Track length optimization - find the solution with the shortest total track length
       const totalLength1 = solution1.distance + solution1.stubLength;
       const totalLength2 = solution2
         ? solution2.distance + solution2.stubLength
@@ -231,7 +246,13 @@ const SingleStubNetwork = ({
         generateGraphData(solution2);
       }
 
-      setResults({ solution1, solution2, stubType, stubConfiguration });
+      setResults({
+        solution1,
+        solution2,
+        stubType,
+        stubConfiguration,
+      });
+
       updateResults({
         solution1,
         solution2,
@@ -249,13 +270,21 @@ const SingleStubNetwork = ({
               )} m vs ${totalLength1.toFixed(2)} m).`,
       });
     } else {
-      // **Series Stub Calculation**
+      // Series Stub Calculation
       const zL = { real: RL / Z0, imag: XL / Z0 };
       const denominator = (zL.real + 1) ** 2 + zL.imag ** 2;
+      if (denominator < 1e-10) {
+        alert(
+          "Invalid load impedance: denominator in reflection coefficient calculation is zero."
+        );
+        return;
+      }
       const GammaLReal =
         ((zL.real - 1) * (zL.real + 1) + zL.imag * zL.imag) / denominator;
       const GammaLImag = (2 * zL.imag) / denominator;
-      const GammaLMagnitude = Math.sqrt(GammaLReal ** 2 + GammaLImag ** 2);
+      let GammaLMagnitude = Math.sqrt(GammaLReal ** 2 + GammaLImag ** 2);
+      // Clamp GammaLMagnitude to avoid numerical issues with acos
+      GammaLMagnitude = Math.min(1, Math.max(0, GammaLMagnitude));
       const phi = Math.atan2(GammaLImag, GammaLReal);
       const alpha = Math.acos(GammaLMagnitude);
 
@@ -269,43 +298,85 @@ const SingleStubNetwork = ({
       const computeZin = (dWavelength) =>
         transformImpedance({ real: RL, imag: XL }, Z0, dWavelength);
 
-      // Solution 1
       const ZInD1 = computeZin(d1Wavelength);
       const XStub1 = -ZInD1.imag;
-      let stubLength1Wavelength;
+      let stubLength1Wavelength, stubLength1Open, stubLength1Short;
+      const epsilon = 1e-10; // Small threshold to avoid division by zero
       if (stubType === "short") {
-        stubLength1Wavelength = (1 / (2 * Math.PI)) * Math.atan(XStub1 / Z0);
+        stubLength1Wavelength =
+          Math.abs(XStub1) < epsilon
+            ? 0
+            : (1 / (2 * Math.PI)) * Math.atan(XStub1 / Z0);
+        stubLength1Short = stubLength1Wavelength;
+        stubLength1Open =
+          Math.abs(XStub1) < epsilon
+            ? 0.25 // tan(βℓ) = -Z0/XStub1 → ∞, so βℓ = π/2, ℓ/λ = 1/4
+            : (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub1);
         if (stubLength1Wavelength < 0) stubLength1Wavelength += 0.5;
+        if (stubLength1Open < 0) stubLength1Open += 0.5;
       } else {
-        stubLength1Wavelength = (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub1);
+        stubLength1Wavelength =
+          Math.abs(XStub1) < epsilon
+            ? 0.25
+            : (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub1);
+        stubLength1Open = stubLength1Wavelength;
+        stubLength1Short =
+          Math.abs(XStub1) < epsilon
+            ? 0
+            : (1 / (2 * Math.PI)) * Math.atan(XStub1 / Z0);
         if (stubLength1Wavelength < 0) stubLength1Wavelength += 0.5;
+        if (stubLength1Short < 0) stubLength1Short += 0.5;
       }
+
       const solution1 = {
         distance: d1Wavelength * wavelength,
         stubLength: stubLength1Wavelength * wavelength,
         distanceWavelength: d1Wavelength,
         stubLengthWavelength: stubLength1Wavelength,
+        reactance: XStub1,
+        locLambda: stubLength1Open,
+        lscLambda: stubLength1Short,
       };
 
-      // Solution 2
       const ZInD2 = computeZin(d2Wavelength);
       const XStub2 = -ZInD2.imag;
-      let stubLength2Wavelength;
+      let stubLength2Wavelength, stubLength2Open, stubLength2Short;
       if (stubType === "short") {
-        stubLength2Wavelength = (1 / (2 * Math.PI)) * Math.atan(XStub2 / Z0);
+        stubLength2Wavelength =
+          Math.abs(XStub2) < epsilon
+            ? 0
+            : (1 / (2 * Math.PI)) * Math.atan(XStub2 / Z0);
+        stubLength2Short = stubLength2Wavelength;
+        stubLength2Open =
+          Math.abs(XStub2) < epsilon
+            ? 0.25
+            : (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub2);
         if (stubLength2Wavelength < 0) stubLength2Wavelength += 0.5;
+        if (stubLength2Open < 0) stubLength2Open += 0.5;
       } else {
-        stubLength2Wavelength = (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub2);
+        stubLength2Wavelength =
+          Math.abs(XStub2) < epsilon
+            ? 0.25
+            : (1 / (2 * Math.PI)) * Math.atan(-Z0 / XStub2);
+        stubLength2Open = stubLength2Wavelength;
+        stubLength2Short =
+          Math.abs(XStub2) < epsilon
+            ? 0
+            : (1 / (2 * Math.PI)) * Math.atan(XStub2 / Z0);
         if (stubLength2Wavelength < 0) stubLength2Wavelength += 0.5;
+        if (stubLength2Short < 0) stubLength2Short += 0.5;
       }
+
       const solution2 = {
         distance: d2Wavelength * wavelength,
         stubLength: stubLength2Wavelength * wavelength,
         distanceWavelength: d2Wavelength,
         stubLengthWavelength: stubLength2Wavelength,
+        reactance: XStub2,
+        locLambda: stubLength2Open,
+        lscLambda: stubLength2Short,
       };
 
-      // Track length optimization - find the solution with the shortest total track length
       const totalLength1 = solution1.distance + solution1.stubLength;
       const totalLength2 = solution2.distance + solution2.stubLength;
 
@@ -347,7 +418,7 @@ const SingleStubNetwork = ({
     }
   };
 
-  // **JSX Rendering**
+  // JSX Rendering
   return (
     <Card className="bg-gray-800 border border-gray-700 shadow-lg">
       <CardHeader className="border-b border-gray-700">
@@ -423,6 +494,23 @@ const SingleStubNetwork = ({
                   <span className="text-blue-400">(Recommended)</span>
                 )}
               </h3>
+              {stubConfiguration === "shunt" && (
+                <p className="text-gray-300">
+                  t: {results.solution1.tValue.toFixed(4)}, d/λ:{" "}
+                  {results.solution1.distanceWavelength.toFixed(3)}, B:{" "}
+                  {results.solution1.bValue.toFixed(4)}
+                </p>
+              )}
+              {stubConfiguration === "series" && (
+                <p className="text-gray-300">
+                  Reactance (X): {results.solution1.reactance.toFixed(4)}, d/λ:{" "}
+                  {results.solution1.distanceWavelength.toFixed(3)}
+                </p>
+              )}
+              <p className="text-gray-300">
+                loc/λ: {results.solution1.locLambda.toFixed(3)}, lsc/λ:{" "}
+                {results.solution1.lscLambda.toFixed(3)}
+              </p>
               <p className="text-gray-300">
                 Distance from Load: {results.solution1.distance.toFixed(2)} m (
                 {(results.solution1.distanceWavelength * 360).toFixed(1)}°)
@@ -460,6 +548,23 @@ const SingleStubNetwork = ({
                     <span className="text-blue-400">(Recommended)</span>
                   )}
                 </h3>
+                {stubConfiguration === "shunt" && (
+                  <p className="text-gray-300">
+                    t: {results.solution2.tValue.toFixed(4)}, d/λ:{" "}
+                    {results.solution2.distanceWavelength.toFixed(3)}, B:{" "}
+                    {results.solution2.bValue.toFixed(4)}
+                  </p>
+                )}
+                {stubConfiguration === "series" && (
+                  <p className="text-gray-300">
+                    Reactance (X): {results.solution2.reactance.toFixed(4)},
+                    d/λ: {results.solution2.distanceWavelength.toFixed(3)}
+                  </p>
+                )}
+                <p className="text-gray-300">
+                  loc/λ: {results.solution2.locLambda.toFixed(3)}, lsc/λ:{" "}
+                  {results.solution2.lscLambda.toFixed(3)}
+                </p>
                 <p className="text-gray-300">
                   Distance from Load: {results.solution2.distance.toFixed(2)} m
                   ({(results.solution2.distanceWavelength * 360).toFixed(1)}°)
@@ -484,7 +589,6 @@ const SingleStubNetwork = ({
               </div>
             )}
 
-            {/* Optimization reasoning */}
             <div className="p-3 bg-gray-600 rounded-md">
               <p className="text-sm text-gray-300">{optimizationReason}</p>
             </div>

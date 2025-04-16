@@ -11,8 +11,6 @@ import MatchingWizard from "./components/MatchingWizard";
 import MicrostripSupport from "./components/MicrostripSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import "./styles/dark-theme.css";
-import { Button } from "./components/ui/button";
-
 // CSS to remove spinner arrows from number inputs
 const styles = `
   /* Remove spinner arrows from number inputs for Chrome, Safari, Edge, Opera */
